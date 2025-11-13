@@ -147,10 +147,10 @@ deploy_workflow = textwrap.dedent("""\
               # Copy content of site_to_deploy into v<TAG> directory (overwrite)
               cp -a site_to_deploy/. "v${TAG}/"
               
-              # Generate versions index with links to all releases
+              # Generate versions index with correct links
               echo "<!doctype html><html><head><meta charset='utf-8'><title>Available Versions</title></head><body><h1>Available Versions</h1><ul>" > versions_index.html
               
-              # Get all version directories and list them (simple approach)
+              # Get all version directories and list them
               for d in v*/ ; do
                 if [ -d "$d" ]; then
                   # strip trailing slash
@@ -167,6 +167,13 @@ deploy_workflow = textwrap.dedent("""\
                 echo "<p><strong><a href='./v${TAG}/'>Latest version (${TAG})</a></strong></p>" >> versions_index.html
               fi
               
+              # Add main site navigation
+              echo "<h2>Site Navigation</h2>" >> versions_index.html
+              echo "<ul>" >> versions_index.html
+              echo "<li><a href='./ru/'>Russian Version</a></li>" >> versions_index.html
+              echo "<li><a href='./en/'>English Version</a></li>" >> versions_index.html
+              echo "</ul>" >> versions_index.html
+              
               echo "</body></html>" >> versions_index.html
               mv versions_index.html index.html
 
@@ -182,12 +189,39 @@ deploy_workflow = textwrap.dedent("""\
               # Push to gh-pages branch using token auth
               git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" gh-pages
 
-          - name: Create GitHub Pages build (if needed)
+          - name: Update release with site URL
             uses: actions/github-script@v7
+            env:
+              SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
             with:
               script: |
-                // optional: nothing here, pages will serve from gh-pages branch once set in repo settings
-                core.info("Deployed files to gh-pages branch.")
+                const { repo, owner } = context.repo;
+                const tagName = context.payload.release.tag_name;
+                const releaseId = context.payload.release.id;
+                
+                const siteUrl = `https://${owner}.github.io/${repo}`;
+                const versionUrl = `${siteUrl}/v${tagName}/`;
+                
+                const newBody = `## Release ${tagName}
+                
+                ##  Live Demo
+                **Main site:** ${siteUrl}
+                **This version:** ${versionUrl}
+                
+                ##  Available Pages
+                - Russian: ${siteUrl}/ru/
+                - English: ${siteUrl}/en/
+                
+                ${context.payload.release.body || ''}`;
+                
+                await github.rest.repos.updateRelease({
+                  owner,
+                  repo,
+                  release_id: releaseId,
+                  body: newBody
+                });
+                
+                core.info(`Updated release with site URL: ${siteUrl}`);
 """)
 
 readme_deploy = textwrap.dedent("""\
@@ -204,6 +238,7 @@ readme_deploy = textwrap.dedent("""\
        где `<tag>` — это `tag_name` релиза (например `v1.0.0`).
     3. Все прошлые версии остаются в ветке `gh-pages` в своих папках `v.../`.
     4. На главной странице автоматически генерируется список всех доступных версий.
+    5. Release автоматически обновляется с ссылками на сайт.
 """)
 
 set_pages_py = textwrap.dedent("""\
@@ -251,4 +286,5 @@ print("\nГенерация завершена.")
 print("Дальше: инициализируйте репозиторий, закоммитьте и запушьте изменения, если ещё не сделали этого.")
 print("1) git add . && git commit -m 'Add site + CI' && git push origin main")
 print("2) В GitHub: Settings → Pages → выберите ветку gh-pages (или запустите set_github_pages.py с токеном)")
-print("3) Создайте релиз — workflow автоматически создаст папку v<tag> в ветке gh-pages.")
+print("3) Создайте релиз — workflow автоматически создаст папку v<tag> в ветке gh-pages и добавит ссылки в релиз.")
+

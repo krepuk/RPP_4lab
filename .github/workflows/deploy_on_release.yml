@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -18,11 +23,11 @@ jobs:
 
       - name: Prepare files
         run: |
-          # Создаем папку с именем тега (уже содержит v)
+          # Создаем папку с именем тега
           mkdir -p ${{ github.event.release.tag_name }}
           cp -r ru en index.html ${{ github.event.release.tag_name }}/
 
-      - name: Deploy to gh-pages branch
+      - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -30,5 +35,3 @@ jobs:
           publish_dir: ./
           force_orphan: false
           keep_files: true
-
-

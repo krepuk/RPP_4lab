@@ -109,15 +109,6 @@ deploy_workflow = textwrap.dedent("""\
             with:
               fetch-depth: 0
 
-          - name: Prepare deploy folder
-            run: |
-              # create temporary folder with site files
-              mkdir -p site_to_deploy
-              cp -a ru site_to_deploy/ || true
-              cp -a en site_to_deploy/ || true
-              cp -a index.html site_to_deploy/ || true
-              echo "Release: ${{ github.event.release.tag_name }}" > site_to_deploy/RELEASE.txt
-
           - name: Setup git for pushing
             run: |
               git config user.name "github-actions[bot]"
@@ -131,13 +122,23 @@ deploy_workflow = textwrap.dedent("""\
             run: |
               if git rev-parse --verify gh-pages >/dev/null 2>&1; then
                 git checkout gh-pages
+                # Clean any untracked files that might interfere
+                git clean -fd
               else
                 git checkout --orphan gh-pages
                 git rm -rf .
                 git commit --allow-empty -m "Initialize gh-pages"
                 git push origin gh-pages
-                git checkout gh-pages
               fi
+
+          - name: Prepare deploy folder
+            run: |
+              # create temporary folder with site files
+              mkdir -p site_to_deploy
+              cp -a ../ru site_to_deploy/ || true
+              cp -a ../en site_to_deploy/ || true
+              cp -a ../index.html site_to_deploy/ || true
+              echo "Release: ${{ github.event.release.tag_name }}" > site_to_deploy/RELEASE.txt
 
           - name: Copy files into versioned folder
             run: |
@@ -149,8 +150,8 @@ deploy_workflow = textwrap.dedent("""\
               # Generate versions index with links to all releases
               echo "<!doctype html><html><head><meta charset='utf-8'><title>Available Versions</title></head><body><h1>Available Versions</h1><ul>" > versions_index.html
               
-              # Get all version directories, sort by version number (newest first)
-              for d in $(ls -dv v*/ 2>/dev/null | sort -Vr); do
+              # Get all version directories and list them (simple approach)
+              for d in v*/ ; do
                 if [ -d "$d" ]; then
                   # strip trailing slash
                   name="${d%/}"
@@ -159,13 +160,18 @@ deploy_workflow = textwrap.dedent("""\
                 fi
               done
               
-              # Add link to latest version
+              echo "</ul>" >> versions_index.html
+              
+              # Add link to latest version if current tag exists
               if [ -d "v${TAG}" ]; then
-                echo "</ul><p><strong><a href='./v${TAG}/'>Latest version (${TAG})</a></strong></p>" >> versions_index.html
+                echo "<p><strong><a href='./v${TAG}/'>Latest version (${TAG})</a></strong></p>" >> versions_index.html
               fi
               
               echo "</body></html>" >> versions_index.html
               mv versions_index.html index.html
+
+              # Clean up temporary folder
+              rm -rf site_to_deploy
 
           - name: Commit and push changes to gh-pages
             env:

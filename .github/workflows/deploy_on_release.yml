@@ -53,16 +53,26 @@ jobs:
           mkdir -p "v${TAG}"
           # Copy content of site_to_deploy into v<TAG> directory (overwrite)
           cp -a site_to_deploy/. "v${TAG}/"
-          # Update top-level index.html (versions index) to include links to all v*/ dirs
-          echo "<!doctype html><html><head><meta charset='utf-8'><title>Versions</title></head><body><h1>Available versions</h1><ul>" > versions_index.html
-          for d in v*/ ; do
+          
+          # Generate versions index with links to all releases
+          echo "<!doctype html><html><head><meta charset='utf-8'><title>Available Versions</title></head><body><h1>Available Versions</h1><ul>" > versions_index.html
+          
+          # Get all version directories, sort by version number (newest first)
+          for d in $(ls -dv v*/ 2>/dev/null | sort -Vr); do
             if [ -d "$d" ]; then
               # strip trailing slash
               name="${d%/}"
-              echo "<li><a href='/${{ github.repository }}/$name/'>$name/</a></li>" >> versions_index.html
+              version="${name#v}"
+              echo "<li><a href='./$name/'>Version $version</a> ($name)</li>" >> versions_index.html
             fi
           done
-          echo "</ul></body></html>" >> versions_index.html
+          
+          # Add link to latest version
+          if [ -d "v${TAG}" ]; then
+            echo "</ul><p><strong><a href='./v${TAG}/'>Latest version (${TAG})</a></strong></p>" >> versions_index.html
+          fi
+          
+          echo "</body></html>" >> versions_index.html
           mv versions_index.html index.html
 
       - name: Commit and push changes to gh-pages

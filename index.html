@@ -1,3 +1,5 @@
+[file name]: index.html
+[file content begin]
 <!doctype html>
 <html lang="en">
 <head>
@@ -7,24 +9,33 @@
 <body>
   <h1>Project Site</h1>
   
-  <h2>Available Versions:</h2>
-  <ul>
-    <li><a href="./v3/">Version 6 (Latest)</a></li>
-    <li><a href="./v2/">Version 2</a></li>
-    <!-- Новые версии будут добавляться автоматически при каждом релизе -->
-  </ul>
+  <div class="version-list">
+    <h2>Available Versions:</h2>
+    <ul>
+      <li class="latest"><a href="./v2/">Version 1.0.0 (LATEST)</a></li>
+      <li>🔹 <a href="./v3/">Version 3</a></li>
+      <li>🔹 <a href="./v4/">Version 4</a></li>
+      <!-- Новые версии будут добавляться автоматически при каждом релизе -->
+    </ul>
+    <p><em>This list is automatically updated with each new release</em></p>
+  </div>
 
   <h2>Navigation:</h2>
   <ul>
-    <li><a href="./ru/index.html">Russian version</a></li>
-    <li><a href="./en/index.html">English version</a></li>
+    <li>🇷🇺 <a href="./ru/index.html">Русская версия</a></li>
+    <li>🇬🇧 <a href="./en/index.html">English version</a></li>
   </ul>
 
-  <h2>Site URLs:</h2>
+  <h2>Quick Links:</h2>
   <ul>
     <li><strong>Main Site:</strong> <a href="https://krepuk.github.io/RPP_4lab/">https://krepuk.github.io/RPP_4lab/</a></li>
     <li><strong>Russian:</strong> <a href="https://krepuk.github.io/RPP_4lab/ru/">Russian Version</a></li>
     <li><strong>English:</strong> <a href="https://krepuk.github.io/RPP_4lab/en/">English Version</a></li>
   </ul>
+
+  <script>
+    // Простой скрипт для отображения текущей версии
+    console.log('Site version: 1.0.0');
+  </script>
 </body>
 </html>

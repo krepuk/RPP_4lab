@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
 
 jobs:
   deploy:
@@ -17,116 +16,56 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup git for pushing
+      - name: Setup git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Fetch gh-pages branch if exists
+      - name: Deploy to GitHub Pages
         run: |
-          git fetch origin gh-pages:gh-pages || true
+          # Создаем временную папку с файлами сайта
+          mkdir -p _site
+          cp -r ru en index.html _site/ || true
+          
+          # Создаем версионную папку
+          mkdir -p _site/v${{ github.event.release.tag_name }}
+          cp -r ru en index.html _site/v${{ github.event.release.tag_name }}/ || true
+          
+          # Генерируем главную страницу со списком всех версий
+          cat > _site/index.html << 'EOF'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <title>Project Site - All Versions</title>
+          </head>
+          <body>
+            <h1>Project Site</h1>
+            
+            <h2>Navigation:</h2>
+            <ul>
+              <li><a href="./ru/index.html">Русская версия</a></li>
+              <li><a href="./en/index.html">English version</a></li>
+            </ul>
 
-      - name: Switch to gh-pages branch (or create it)
-        run: |
-          if git rev-parse --verify gh-pages >/dev/null 2>&1; then
-            git checkout gh-pages
-            # Clean any untracked files that might interfere
-            git clean -fd
-          else
-            git checkout --orphan gh-pages
-            git rm -rf .
-            git commit --allow-empty -m "Initialize gh-pages"
-            git push origin gh-pages
-          fi
+            <h2>Available Versions:</h2>
+            <ul>
+          EOF
+          
+          # Добавляем ссылки на все версии (это будет работать при следующих релизах)
+          echo "<li><a href='./v${{ github.event.release.tag_name }}/'>Version ${{ github.event.release.tag_name }} (Latest)</a></li>" >> _site/index.html
+          
+          cat >> _site/index.html << 'EOF'
+            </ul>
 
-      - name: Prepare deploy folder
-        run: |
-          # create temporary folder with site files
-          mkdir -p site_to_deploy
-          cp -a ../ru site_to_deploy/ || true
-          cp -a ../en site_to_deploy/ || true
-          cp -a ../index.html site_to_deploy/ || true
-          echo "Release: ${{ github.event.release.tag_name }}" > site_to_deploy/RELEASE.txt
-
-      - name: Copy files into versioned folder
-        run: |
-          TAG="${{ github.event.release.tag_name }}"
-          mkdir -p "v${TAG}"
-          # Copy content of site_to_deploy into v<TAG> directory (overwrite)
-          cp -a site_to_deploy/. "v${TAG}/"
+            <p><em>This list is automatically updated with each new release.</em></p>
+          </body>
+          </html>
+          EOF
           
-          # Generate versions index with correct links
-          echo "<!doctype html><html><head><meta charset='utf-8'><title>Available Versions</title></head><body><h1>Available Versions</h1><ul>" > versions_index.html
-          
-          # Get all version directories and list them
-          for d in v*/ ; do
-            if [ -d "$d" ]; then
-              # strip trailing slash
-              name="${d%/}"
-              version="${name#v}"
-              echo "<li><a href='./$name/'>Version $version</a> ($name)</li>" >> versions_index.html
-            fi
-          done
-          
-          echo "</ul>" >> versions_index.html
-          
-          # Add link to latest version if current tag exists
-          if [ -d "v${TAG}" ]; then
-            echo "<p><strong><a href='./v${TAG}/'>Latest version (${TAG})</a></strong></p>" >> versions_index.html
-          fi
-          
-          # Add main site navigation
-          echo "<h2>Site Navigation</h2>" >> versions_index.html
-          echo "<ul>" >> versions_index.html
-          echo "<li><a href='./ru/'>Russian Version</a></li>" >> versions_index.html
-          echo "<li><a href='./en/'>English Version</a></li>" >> versions_index.html
-          echo "</ul>" >> versions_index.html
-          
-          echo "</body></html>" >> versions_index.html
-          mv versions_index.html index.html
-
-          # Clean up temporary folder
-          rm -rf site_to_deploy
-
-      - name: Commit and push changes to gh-pages
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
+          # Деплоим с помощью peaceiris/actions-gh-pages
+          cd _site
+          git init
           git add -A
-          git commit -m "Deploy site for release ${{ github.event.release.tag_name }}" || echo "No changes to commit"
-          # Push to gh-pages branch using token auth
-          git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" gh-pages
-
-      - name: Update release with site URL
-        uses: actions/github-script@v7
-        env:
-          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
-        with:
-          script: |
-            const { repo, owner } = context.repo;
-            const tagName = context.payload.release.tag_name;
-            const releaseId = context.payload.release.id;
-            
-            const siteUrl = `https://${owner}.github.io/${repo}`;
-            const versionUrl = `${siteUrl}/v${tagName}/`;
-            
-            const newBody = `## 🚀 Release ${tagName}
-            
-            ## 🔗 Live Demo
-            **Main site:** ${siteUrl}
-            **This version:** ${versionUrl}
-            
-            ## 📁 Available Pages
-            - Russian: ${siteUrl}/ru/
-            - English: ${siteUrl}/en/
-            
-            ${context.payload.release.body || ''}`;
-            
-            await github.rest.repos.updateRelease({
-              owner,
-              repo,
-              release_id: releaseId,
-              body: newBody
-            });
-            
-            core.info(`Updated release with site URL: ${siteUrl}`);
+          git commit -m "Deploy site for release ${{ github.event.release.tag_name }}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" main:gh-pages

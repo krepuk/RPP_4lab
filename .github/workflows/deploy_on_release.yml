@@ -19,19 +19,8 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Download previous deployment
-        uses: actions/download-pages-artifact@v3
-        with:
-          path: ./previous-site
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Create version folder
         run: |
-          # Копируем предыдущий сайт (если есть)
-          if [ -d "./previous-site" ]; then
-            cp -r ./previous-site/* ./ 2>/dev/null || true
-          fi
-          
           # Создаем папку для текущей версии
           mkdir -p ${{ github.event.release.tag_name }}
           cp -r ru en ${{ github.event.release.tag_name }}/
@@ -56,9 +45,9 @@ jobs:
           </html>
           EOF
 
-      - name: Generate main index with all versions
+      - name: Generate main index
         run: |
-          # Создаем главную страницу со ВСЕМИ версиями
+          # Создаем главную страницу
           cat > index.html << 'EOF'
           <!doctype html>
           <html lang="en">
@@ -71,21 +60,8 @@ jobs:
             <div class="version-list">
               <h2>Все версии:</h2>
               <ul>
-          EOF
-          
-          # Добавляем все версии из существующих папок v*
-          for dir in v*/; do
-            if [ -d "$dir" ]; then
-              version=${dir%/}
-              if [ "$version" = "${{ github.event.release.tag_name }}" ]; then
-                echo "                <li class=\"latest\"><a href=\"./$version/\">$version (LATEST)</a></li>" >> index.html
-              else
-                echo "                <li><a href=\"./$version/\">$version</a></li>" >> index.html
-              fi
-            fi
-          done
-          
-          cat >> index.html << 'EOF'
+                <li class="latest"><a href="./${{ github.event.release.tag_name }}/">${{ github.event.release.tag_name }} (LATEST)</a></li>
+                <!-- Старые версии появятся после нескольких релизов -->
               </ul>
             </div>
             <h2>Navigation:</h2>
@@ -93,6 +69,7 @@ jobs:
               <li><a href="./ru/index.html">Русская версия</a></li>
               <li><a href="./en/index.html">English version</a></li>
             </ul>
+            <p><em>История версий будет сохраняться при следующих релизах</em></p>
           </body>
           </html>
           EOF

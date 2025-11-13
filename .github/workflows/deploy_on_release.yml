@@ -20,7 +20,7 @@ jobs:
         run: |
           # Создаем папку с именем тега (уже содержит v)
           mkdir -p ${{ github.event.release.tag_name }}
-          cp -r ru en index.html .nojekyll ${{ github.event.release.tag_name }}/
+          cp -r ru en index.html ${{ github.event.release.tag_name }}/
 
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v3

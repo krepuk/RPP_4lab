@@ -50,6 +50,11 @@ jobs:
 
       - name: Generate main index with all versions
         run: |
+          echo "=== DEBUG: Starting version list generation ==="
+          echo "Current release tag: ${{ github.event.release.tag_name }}"
+          echo "Available version folders:"
+          ls -la v*/ 2>/dev/null || echo "No version folders found"
+          
           # Создаем главную страницу со списком всех версий
           cat > index.html << 'EOF'
           <!doctype html>
@@ -67,14 +72,17 @@ jobs:
           EOF
           
           # Добавляем все существующие версии в список
-          # Сортируем по имени в обратном порядке (новые версии первыми)
-          for dir in $(ls -d v*/ 2>/dev/null | sort -Vr); do
-            version=${dir%/}
-            version_num=${version#v}
-            if [ "$version" = "v${{ github.event.release.tag_name }}" ]; then
-              echo "                <li class=\"latest\"><a href=\"./$version/\">Version $version_num (LATEST)</a></li>" >> index.html
-            else
-              echo "                <li><a href=\"./$version/\">Version $version_num</a></li>" >> index.html
+          # Используем простой перебор без сложной сортировки
+          for dir in v*/; do
+            if [ -d "$dir" ]; then
+              version=${dir%/}  # убираем слеш в конце
+              version_num=${version#v}  # убираем 'v' в начале
+              echo "Found version: $version -> $version_num"
+              if [ "$version" = "v${{ github.event.release.tag_name }}" ]; then
+                echo "                <li class=\"latest\"><a href=\"./$version/\">Version $version_num (LATEST)</a></li>" >> index.html
+              else
+                echo "                <li><a href=\"./$version/\">Version $version_num</a></li>" >> index.html
+              fi
             fi
           done
           
@@ -89,11 +97,14 @@ jobs:
             </ul>
 
             <script>
-              console.log('Site version: ${{ github.event.release.tag_name }}');
+              console.log('Site deployed for release: ${{ github.event.release.tag_name }}');
             </script>
           </body>
           </html>
           EOF
+          
+          echo "=== DEBUG: Generated index.html content ==="
+          cat index.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
@@ -102,4 +113,3 @@ jobs:
           publish_dir: ./
           force_orphan: false
           keep_files: true
-

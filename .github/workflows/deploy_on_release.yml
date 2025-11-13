@@ -1,4 +1,3 @@
-
 name: Deploy site on release
 
 on:
@@ -12,7 +11,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Git
@@ -20,10 +19,12 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Create version folder and generate index
+      - name: Create versioned site
         run: |
-          # Создаем папку для текущей версии
+          # Создаем папку для текущей версии релиза
           mkdir -p ${{ github.event.release.tag_name }}
+          
+          # Копируем все файлы сайта в версионную папку
           cp -r ru en ${{ github.event.release.tag_name }}/
           
           # Создаем index.html для версионной папки
@@ -36,56 +37,70 @@ jobs:
           </head>
           <body>
             <h1>Project Site - ${{ github.event.release.tag_name }}</h1>
-            <h2>Navigation:</h2>
+            <p>This is version <strong>${{ github.event.release.tag_name }}</strong> of the site.</p>
+            
+            <h2>Site Navigation:</h2>
             <ul>
-              <li><a href="./ru/index.html">Russian version</a></li>
-              <li><a href="./en/index.html">English version</a></li>
+              <li><a href="./ru/index.html">Russian Version</a></li>
+              <li><a href="./en/index.html">English Version</a></li>
             </ul>
-            <p><a href="../index.html">← Back to all versions</a></p>
+            
+            <h2>Version Navigation:</h2>
+            <ul>
+              <li><a href="../index.html">← Back to All Versions</a></li>
+            </ul>
+            
+            <hr>
+            <p><small>Automatically deployed via GitHub Actions</small></p>
           </body>
           </html>
           EOF
 
-          # Генерируем главную страницу со ВСЕМИ версиями
+      - name: Generate main index with all versions
+        run: |
+          # Создаем главную страницу со списком ВСЕХ версий
           cat > index.html << 'EOF'
           <!doctype html>
           <html lang="en">
           <head>
             <meta charset="utf-8">
-            <title>Project Site</title>
+            <title>Project Site - All Versions</title>
           </head>
           <body>
             <h1>Project Site</h1>
-            <div class="version-list">
-              <h2>Все версии:</h2>
-              <ul>
+            
+            <h2>All Available Versions:</h2>
+            <ul>
           EOF
-
-          # Добавляем все существующие версии v*
-          for dir in v*/; do
+          
+          # Находим все папки версий и добавляем в список (сортировка по убыванию)
+          for dir in $(ls -dv v*/ 2>/dev/null | sort -Vr); do
             if [ -d "$dir" ]; then
               version=${dir%/}
               if [ "$version" = "${{ github.event.release.tag_name }}" ]; then
-                echo "                <li class=\"latest\"><a href=\"./$version/\">$version (LATEST)</a></li>" >> index.html
+                echo "              <li><strong><a href=\"./$version/\">$version (LATEST)</a></strong></li>" >> index.html
               else
-                echo "                <li><a href=\"./$version/\">$version</a></li>" >> index.html
+                echo "              <li><a href=\"./$version/\">$version</a></li>" >> index.html
               fi
             fi
           done
-
+          
           cat >> index.html << 'EOF'
-              </ul>
-            </div>
-            <h2>Navigation:</h2>
-            <ul>
-              <li><a href="./ru/index.html">Русская версия</a></li>
-              <li><a href="./en/index.html">English version</a></li>
             </ul>
+
+            <h2>Site Navigation:</h2>
+            <ul>
+              <li><a href="./ru/index.html">Russian Version</a></li>
+              <li><a href="./en/index.html">English Version</a></li>
+            </ul>
+
+            <hr>
+            <p><small>Each release creates a new versioned deployment. All previous versions remain accessible.</small></p>
           </body>
           </html>
           EOF
 
-      - name: Deploy to gh-pages branch
+      - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -93,3 +108,5 @@ jobs:
           publish_dir: ./
           force_orphan: false
           keep_files: true
+          commit_message: "Deploy version ${{ github.event.release.tag_name }}"
+

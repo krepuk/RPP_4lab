@@ -1,9 +1,3 @@
-# set_github_pages.py
-# Скрипт использует PyGithub для установки источника GitHub Pages на ветку gh-pages (root).
-# Usage:
-#   pip install PyGithub
-#   python set_github_pages.py <GITHUB_TOKEN> <owner> <repo>
-#
 import sys
 from github import Github
 
